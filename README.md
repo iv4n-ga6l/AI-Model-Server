@@ -46,8 +46,8 @@ A high-performance web server for AI models, primarily focused on computer visio
 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/ai-model-server.git
-cd ai-model-server
+git clone https://github.com/iv4n-ga6l/AI-Model-Server.git
+cd AI-Model-Server
 ```
 
 2. Install dependencies
