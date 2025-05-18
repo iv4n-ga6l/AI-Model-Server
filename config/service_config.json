@@ -1,0 +1,8 @@
+{
+  "max_concurrent_inferences": 4,
+  "cleanup_interval_hours": 24,
+  "max_result_age_days": 7,
+  "default_backend": "cpu",
+  "model_cache_size": 2,
+  "last_updated": "2025-05-19T00:13:06.329764"
+}

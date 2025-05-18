@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Server</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        .result-image {
+            @apply max-w-full border border-gray-200 rounded p-2;
+        }
+        .prediction-info {
+            @apply mt-4 bg-gray-50 p-4 rounded border-l-4 border-blue-500;
+        }
+        .loading {
+            @apply hidden text-center my-5;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">AI Model Server</h1>
+                <p class="text-lg text-gray-600 mt-2">Upload an image to run inference with YOLO models</p>
+            </div>
+            <a href="https://github.com/" target="_blank" class="text-gray-700 hover:text-gray-900 transition-colors">
+                <i class="fab fa-github text-3xl"></i>
+            </a>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md mb-8">
+            <div class="bg-gray-100 px-6 py-4 rounded-t-lg border-b border-gray-200">
+                <h5 class="font-medium text-gray-800">Model Selection</h5>
+            </div>
+            <div class="p-6">
+                <form id="prediction-form" enctype="multipart/form-data">
+                    <div class="mb-6">
+                        <label for="file" class="block text-sm font-medium text-gray-700 mb-2">Image File</label>
+                        <input type="file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="file" name="file" accept="image/*" required>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label for="model" class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                            <select class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50" id="model" name="model_name">
+                                <option value="yolov8n" selected>YOLOv8 Nano (Detection)</option>
+                                <option value="yolov8s">YOLOv8 Small (Detection)</option>
+                                <option value="yolov8m">YOLOv8 Medium (Detection)</option>
+                                <option value="yolov8n-seg">YOLOv8 Nano (Segmentation)</option>
+                                <option value="yolov8s-seg">YOLOv8 Small (Segmentation)</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="task" class="block text-sm font-medium text-gray-700 mb-2">Task Type</label>
+                            <select class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50" id="task" name="task_type">
+                                <option value="detection" selected>Object Detection</option>
+                                <option value="segmentation">Segmentation</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="confidence" class="block text-sm font-medium text-gray-700 mb-2">Confidence Threshold</label>
+                            <input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" id="confidence" name="confidence" min="0.1" max="0.9" step="0.1" value="0.5">
+                            <div class="text-center mt-1 text-sm text-gray-600" id="confidence-value">0.5</div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="mt-6 px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors">Run Inference</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <p class="mt-2 text-gray-700">Processing your image...</p>
+        </div>
+        
+        <div class="result-container hidden" id="result-container">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Results</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2">
+                    <img id="result-image" class="result-image" src="" alt="Result Image">
+                </div>
+                <div>
+                    <div class="prediction-info" id="prediction-info">
+                        <h5 class="font-medium text-gray-800 mb-3">Prediction Details</h5>
+                        <div id="prediction-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update confidence value display
+        document.getElementById('confidence').addEventListener('input', function() {
+            document.getElementById('confidence-value').textContent = this.value;
+        });
+        
+        // Handle form submission
+        document.getElementById('prediction-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Show loading spinner
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result-container').style.display = 'none';
+            
+            // Get form data
+            const formData = new FormData(this);
+            
+            try {
+                // Send prediction request
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Prediction failed');
+                }
+                
+                const result = await response.json();
+                
+                // Display result image
+                document.getElementById('result-image').src = result.result_url;
+                
+                // Display prediction details
+                let detailsHtml = `
+                    <p class="mb-2"><span class="font-medium">Model:</span> ${result.model}</p>
+                    <p class="mb-2"><span class="font-medium">Task:</span> ${result.task}</p>
+                    <p class="mb-2"><span class="font-medium">Prediction ID:</span> ${result.prediction_id}</p>
+                `;
+                
+                if (result.results.detections) {
+                    detailsHtml += `<p class="mb-2"><span class="font-medium">Detections:</span> ${result.results.detections.length}</p>`;
+                    detailsHtml += '<ul class="list-disc pl-5 space-y-1">';
+                    result.results.detections.forEach(det => {
+                        detailsHtml += `<li>${det.class} (${(det.confidence * 100).toFixed(1)}%)</li>`;
+                    });
+                    detailsHtml += '</ul>';
+                } else if (result.results.segments) {
+                    detailsHtml += `<p class="mb-2"><span class="font-medium">Segments:</span> ${result.results.segments.length}</p>`;
+                    detailsHtml += '<ul class="list-disc pl-5 space-y-1">';
+                    result.results.segments.forEach(seg => {
+                        detailsHtml += `<li>${seg.class} (${(seg.confidence * 100).toFixed(1)}%)</li>`;
+                    });
+                    detailsHtml += '</ul>';
+                }
+                
+                document.getElementById('prediction-details').innerHTML = detailsHtml;
+                
+                // Show result container
+                document.getElementById('result-container').style.display = 'block';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during prediction. Please try again.');
+            } finally {
+                // Hide loading spinner
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+        
+        // Sync model and task selection
+        document.getElementById('model').addEventListener('change', function() {
+            const model = this.value;
+            const taskSelect = document.getElementById('task');
+            
+            if (model.includes('-seg')) {
+                taskSelect.value = 'segmentation';
+            } else {
+                taskSelect.value = 'detection';
+            }
+        });
+        
+        document.getElementById('task').addEventListener('change', function() {
+            const task = this.value;
+            const modelSelect = document.getElementById('model');
+            const currentModel = modelSelect.value;
+            
+            if (task === 'segmentation' && !currentModel.includes('-seg')) {
+                modelSelect.value = 'yolov8n-seg';
+            } else if (task === 'detection' && currentModel.includes('-seg')) {
+                modelSelect.value = 'yolov8n';
+            }
+        });
+    </script>
+</body>
+</html>
