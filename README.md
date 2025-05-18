@@ -135,6 +135,6 @@ MIT
 
 ## Acknowledgements
 
-- [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics)
+- [Ultralytics](https://github.com/ultralytics/ultralytics)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [OpenCV](https://opencv.org/)
